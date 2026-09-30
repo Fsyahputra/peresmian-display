@@ -261,6 +261,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   <div id="status-badge">
     <div class="status-dot" id="ws-dot"></div>
     <span id="ws-text">Connecting WebSocket...</span>
+    <button id="btn-sound-enable" style="margin-left:8px; background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; border-radius:12px; font-size:10px; padding:2px 8px; cursor:pointer;" onclick="enableAudio()">🔊 Aktifkan Suara</button>
   </div>
 
   <div id="stage">
@@ -436,6 +437,24 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let stateStartTime = 0;
     let globalTime = 0;
 
+    // Audio SFX Setup
+    const sfxAudio = new Audio('/assets/ceremony_sfx.wav');
+    sfxAudio.preload = 'auto';
+
+    function enableAudio() {
+      sfxAudio.play().then(() => {
+        sfxAudio.pause();
+        sfxAudio.currentTime = 0;
+        document.getElementById('btn-sound-enable').innerText = '🔊 Audio Ready';
+        document.getElementById('btn-sound-enable').style.borderColor = '#22c55e';
+        document.getElementById('btn-sound-enable').style.color = '#22c55e';
+      }).catch(err => console.log('Audio init:', err));
+    }
+    // Also unlock on any screen click
+    window.addEventListener('click', () => {
+      enableAudio();
+    }, { once: true });
+
     const introCard = document.getElementById('intro-card');
     const climaxCard = document.getElementById('climax-card');
     const flash = document.getElementById('flash');
@@ -446,6 +465,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       state = 'implosion';
       stateStartTime = globalTime;
 
+      // Play Sound Effect
+      sfxAudio.currentTime = 0;
+      sfxAudio.play().catch(e => console.warn('Audio play restricted by browser autoplay policy:', e));
+
       // Faded out perlahan dan anggun seiring partikel tersedot (3.8 detik)
       introCard.style.opacity = '0';
       introCard.style.transform = 'scale(0.88)';
@@ -454,6 +477,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     function resetCeremony() {
       state = 'ambient';
       stateStartTime = 0;
+
+      sfxAudio.pause();
+      sfxAudio.currentTime = 0;
 
       const colorArr = geo.attributes.color.array;
       for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
