@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display Layar Proyektor - Peresmian</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+    #videoContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+    /* Operator Arming Overlay */
+    #armOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 29, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      cursor: pointer;
+      transition: opacity 0.5s ease;
+    }
+    #armOverlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .arm-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 2.5rem 3.5rem;
+      border-radius: 1.25rem;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      max-width: 500px;
+    }
+    .arm-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #38bdf8;
+    }
+    .arm-desc {
+      font-size: 1rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+    .arm-btn {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      border: none;
+      padding: 1rem 2.5rem;
+      font-size: 1.15rem;
+      font-weight: 600;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .arm-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+    /* Status Badge kecil di pojok untuk info operator */
+    #statusPill {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 100;
+      opacity: 0.3;
+      transition: opacity 0.3s;
+    }
+    #statusPill:hover {
+      opacity: 1;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .dot.connected {
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Small info badge for operator -->
+  <div id="statusPill">
+    <span class="dot" id="wsDot"></span>
+    <span id="wsStatus">Connecting...</span>
+  </div>
+
+  <!-- Operator ARM Overlay -->
+  <div id="armOverlay">
+    <div class="arm-card">
+      <div class="arm-title">🖥️ Layar Proyektor</div>
+      <p class="arm-desc">
+        Klik tombol di bawah untuk mengaktifkan izin audio HTML5 dan masuk ke mode <strong>Fullscreen</strong> penuh.
+      </p>
+      <button class="arm-btn" id="btnArm">
+        ⚡ ARM & FULLSCREEN
+      </button>
+    </div>
+  </div>
+
+  <!-- Video Container -->
+  <div id="videoContainer">
+    <!-- Masukkan file video peresmian kam ke /public/video.mp4 atau ubah src di bawah -->
+    <video id="displayVideo" preload="auto" playsinline>
+      <source src="/video.mp4" type="video/mp4">
+      Browser tidak mendukung tag video.
+    </video>
+  </div>
+
+  <script>
+    const video = document.getElementById('displayVideo');
+    const armOverlay = document.getElementById('armOverlay');
+    const btnArm = document.getElementById('btnArm');
+    const wsDot = document.getElementById('wsDot');
+    const wsStatus = document.getElementById('wsStatus');
+
+    let isArmed = false;
+    let ws;
+
+    // Masuk fullscreen & ARM
+    function armDisplay() {
+      // Buka fullscreen
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      }
+
+      // Pastikan audio di-unlock & video standby di detik 0
+      video.pause();
+      video.currentTime = 0;
+      video.muted = false;
+      video.volume = 1.0;
+
+      isArmed = true;
+      armOverlay.classList.add('hidden');
+      console.log('Layar ARMED & Siap menerima trigger WebSocket!');
+    }
+
+    btnArm.addEventListener('click', armDisplay);
+
+    // Setup WebSocket
+    function connectWS() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+      ws.onopen = () => {
+        wsDot.classList.add('connected');
+        wsStatus.innerText = 'Connected';
+      };
+
+      ws.onclose = () => {
+        wsDot.classList.remove('connected');
+        wsStatus.innerText = 'Disconnected';
+        setTimeout(connectWS, 2000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'TRIGGER_PLAY') {
+            console.log('Trigger PLAY diterima!');
+            video.currentTime = 0;
+            video.play().catch(err => {
+              console.warn('Gagal play otomatis:', err);
+              // Fallback jika belum di-arm sempurna
+              video.muted = true;
+              video.play();
+            });
+          } else if (data.type === 'TRIGGER_RESET') {
+            console.log('Trigger RESET diterima!');
+            video.pause();
+            video.currentTime = 0;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+    }
+
+    // Lapor ketika video selesai diputar
+    video.addEventListener('ended', () => {
+      console.log('Video peresmian selesai diputar');
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'DISPLAY_STATE_UPDATE',
+          status: 'ENDED'
+        }));
+      }
+    });
+
+    connectWS();
+  </script>
+</body>
+</html>
