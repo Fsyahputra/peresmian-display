@@ -84,13 +84,31 @@ app.get('/remote', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'remote.html'));
 });
 
-app.get('/api/pin-check', (req, res) => {
-  const pin = req.query.pin;
-  if (pin === PIN_CODE) {
-    res.json({ valid: true });
-  } else {
-    res.status(401).json({ valid: false, message: 'PIN Tidak Valid' });
+// HTTP API Trigger Fallbacks (Bypass WebSocket jika kena proxy/firewall)
+app.post('/api/trigger', (req, res) => {
+  const { action, pin } = req.body;
+  if (pin !== PIN_CODE) {
+    return res.status(401).json({ error: 'PIN Salah!' });
   }
+
+  if (action === 'PLAY') {
+    currentState.status = 'PLAYING';
+    currentState.lastUpdated = Date.now();
+    broadcast({ type: 'TRIGGER_PLAY' });
+    console.log(`[HTTP API] TRIGGER PLAY diterima pada ${new Date().toISOString()}`);
+    return res.json({ success: true, status: 'PLAYING' });
+  } else if (action === 'RESET') {
+    currentState.status = 'STANDBY';
+    currentState.lastUpdated = Date.now();
+    broadcast({ type: 'TRIGGER_RESET' });
+    console.log(`[HTTP API] TRIGGER RESET diterima pada ${new Date().toISOString()}`);
+    return res.json({ success: true, status: 'STANDBY' });
+  }
+  res.status(400).json({ error: 'Invalid action' });
+});
+
+app.get('/api/state', (req, res) => {
+  res.json(currentState);
 });
 
 server.listen(PORT, '0.0.0.0', () => {

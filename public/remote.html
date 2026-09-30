@@ -386,6 +386,13 @@
           pin: savedPin
         }));
       }
+
+      // DUAL-CHANNEL BACKUP: Kirim juga via HTTP API instan
+      fetch('/api/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'PLAY', pin: savedPin })
+      }).catch(err => console.error(err));
     });
 
     // Trigger Reset
