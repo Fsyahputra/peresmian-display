@@ -252,6 +252,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\\/script>');
     }
   </script>
+  <script src="/libs/confetti.browser.min.js"></script>
 </head>
 <body>
   <div class="vignette"></div>
@@ -460,6 +461,65 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const flash = document.getElementById('flash');
     const accentBar = document.getElementById('accent-bar');
 
+    
+    // Confetti Rain FX (Top-down full screen rain)
+    let confettiInterval = null;
+
+    function launchConfettiRain() {
+      if (typeof confetti !== "function") return;
+
+      // Initial wide bursts from left, center, right
+      confetti({
+        particleCount: 100,
+        spread: 120,
+        origin: { y: 0.1, x: 0.5 },
+        colors: ["#38bdf8", "#fbbf24", "#ef4444", "#ffffff", "#0284c7", "#f59e0b"],
+        startVelocity: 35,
+        gravity: 0.8,
+        ticks: 350,
+        zIndex: 40
+      });
+
+      const duration = 12 * 1000;
+      const animationEnd = Date.now() + duration;
+
+      if (confettiInterval) clearInterval(confettiInterval);
+
+      confettiInterval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) {
+          clearInterval(confettiInterval);
+          confettiInterval = null;
+          return;
+        }
+
+        // Hujan confetti merata turun dari atas seluruh layar
+        confetti({
+          particleCount: 4,
+          angle: 270,
+          spread: 160,
+          origin: { x: Math.random(), y: -0.05 },
+          colors: ["#38bdf8", "#fbbf24", "#ef4444", "#ffffff", "#0284c7", "#f59e0b"],
+          startVelocity: 12 + Math.random() * 15,
+          gravity: 0.75,
+          scalar: 0.9 + Math.random() * 0.4,
+          drift: (Math.random() - 0.5) * 1.2,
+          ticks: 400,
+          zIndex: 40
+        });
+      }, 70);
+    }
+
+    function stopConfettiRain() {
+      if (confettiInterval) {
+        clearInterval(confettiInterval);
+        confettiInterval = null;
+      }
+      if (typeof confetti === "function" && confetti.reset) {
+        confetti.reset();
+      }
+    }
+
     function triggerInauguration() {
       if (state !== 'ambient') return;
       state = 'implosion';
@@ -475,6 +535,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
 
     function resetCeremony() {
+      stopConfettiRain();
       state = 'ambient';
       stateStartTime = 0;
 
@@ -629,6 +690,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         // Setelah jeda ~300ms, DUAR! Meledak keluar dengan partikel merah menyala!
         if (freezeElapsed > 0.3) {
           state = 'shockwave';
+          launchConfettiRain();
           stateStartTime = globalTime;
 
           flash.style.opacity = '1';
